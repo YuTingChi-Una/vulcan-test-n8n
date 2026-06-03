@@ -1,0 +1,135 @@
+{
+    "name": "Vulcan Test Workflow",
+    "nodes": [
+          {
+                  "id": "agent-1",
+                  "type": "@n8n/n8n-nodes-langchain.agent",
+                  "name": "ResearchAgent",
+                  "assetType": "Agent",
+                  "description": "Agent: AI agent that researches topics and answers questions.",
+                  "parameters": {
+                            "promptType": "define",
+                            "text": "Research the given topic and provide a detailed summary.",
+                            "options": { "systemMessage": "You are a research assistant." }
+                  }
+          },
+          {
+                  "id": "agent-2",
+                  "type": "@n8n/n8n-nodes-langchain.agent",
+                  "name": "WriterAgent",
+                  "assetType": "Agent",
+                  "description": "Agent: AI agent that writes content based on research.",
+                  "parameters": {
+                            "promptType": "define",
+                            "text": "Write an engaging article based on the provided research.",
+                            "options": { "systemMessage": "You are a professional content writer." }
+                  }
+          },
+          {
+                  "id": "tool-1",
+                  "type": "n8n-nodes-base.httpRequest",
+                  "name": "WebSearchTool",
+                  "assetType": "Tool",
+                  "description": "Tool: Fetch data from external APIs or web endpoints.",
+                  "parameters": {
+                            "method": "GET",
+                            "url": "https://api.example.com/search",
+                            "sendQuery": true,
+                            "queryParameters": { "parameters": [{ "name": "q", "value": "={{ $json.query }}" }] }
+                  }
+          },
+          {
+                  "id": "tool-2",
+                  "type": "n8n-nodes-base.code",
+                  "name": "DataTransformTool",
+                  "assetType": "Tool",
+                  "description": "Tool: Transform and process data using JavaScript.",
+                  "parameters": {
+                            "jsCode": "const data = $input.all();\nreturn data.map(item => ({ json: { processed: item.json } }));"
+                  }
+          },
+          {
+                  "id": "skill-1",
+                  "type": "n8n-nodes-base.executeWorkflow",
+                  "name": "ResearchAndWriteSkill",
+                  "assetType": "Skill",
+                  "description": "Skill: Reusable sub-workflow combining research and writing agents.",
+                  "parameters": {
+                            "source": "database",
+                            "workflowId": { "value": "research-write-workflow" }
+                  }
+          },
+          {
+                  "id": "skill-2",
+                  "type": "n8n-nodes-base.executeWorkflow",
+                  "name": "SummarizationSkill",
+                  "assetType": "Skill",
+                  "description": "Skill: Reusable text summarization pipeline.",
+                  "parameters": {
+                            "source": "database",
+                            "workflowId": { "value": "summarization-workflow" }
+                  }
+          },
+          {
+                  "id": "mcp-1",
+                  "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+                  "name": "FilesystemMCPServer",
+                  "assetType": "MCP Server",
+                  "description": "MCP Server: Provides filesystem access tools via Model Context Protocol.",
+                  "parameters": {
+                            "sseEndpoint": "http://localhost:3001/sse"
+                  }
+          },
+          {
+                  "id": "mcp-2",
+                  "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+                  "name": "BraveSearchMCPServer",
+                  "assetType": "MCP Server",
+                  "description": "MCP Server: Provides web search capability via Brave Search MCP.",
+                  "parameters": {
+                            "sseEndpoint": "http://localhost:3002/sse"
+                  }
+          },
+          {
+                  "id": "model-1",
+                  "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                  "name": "GPT4oModel",
+                  "assetType": "AI Model",
+                  "description": "AI Model: OpenAI GPT-4o for advanced reasoning tasks.",
+                  "parameters": {
+                            "model": "gpt-4o",
+                            "options": { "temperature": 0 }
+                  }
+          },
+          {
+                  "id": "model-2",
+                  "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+                  "name": "GPT4oMiniModel",
+                  "assetType": "AI Model",
+                  "description": "AI Model: OpenAI GPT-4o-mini for fast, lightweight tasks.",
+                  "parameters": {
+                            "model": "gpt-4o-mini",
+                            "options": { "temperature": 0.3 }
+                  }
+          },
+          {
+                  "id": "other-1",
+                  "type": "n8n-nodes-base.set",
+                  "name": "OutputFormatter",
+                  "assetType": "Other",
+                  "description": "Other: Formats and structures workflow output data.",
+                  "parameters": {
+                            "assignments": {
+                                        "assignments": [
+                                                      { "name": "formatted", "value": "={{ $json.output }}", "type": "string" },
+                                                      { "name": "timestamp", "value": "={{ $now }}", "type": "string" }
+                                        ]
+                            }
+                  }
+          }
+    ],
+    "connections": {
+          "ResearchAgent": { "main": [[{ "node": "WriterAgent", "type": "main", "index": 0 }]] },
+          "WriterAgent": { "main": [[{ "node": "OutputFormatter", "type": "main", "index": 0 }]] }
+    }
+}
